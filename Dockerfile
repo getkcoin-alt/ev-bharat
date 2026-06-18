@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npx tsc -p tsconfig.build.json && test -f dist/main.js || (echo "ERROR: dist/main.js not found after tsc" && exit 1)
+RUN rm -f tsconfig.build.tsbuildinfo && npm run build && test -f dist/main.js || (echo "ERROR: dist/main.js missing after build" && exit 1)
 
 # ---- production stage ----
 FROM node:22-alpine
