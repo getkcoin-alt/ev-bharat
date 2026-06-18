@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+scripts/seed.js
+scripts/seed.js.map
+scripts/seed.d.ts
+tsconfig.build.tsbuildinfo

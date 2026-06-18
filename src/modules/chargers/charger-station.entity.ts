@@ -12,6 +12,7 @@ import { ChargerConnector } from './charger-connector.entity';
 
 @Entity('charger_stations')
 @Index(['status'])
+@Index(['city'])
 export class ChargerStation {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
@@ -25,10 +28,15 @@ import { User } from './modules/users/user.entity';
 import { UsersModule } from './modules/users/users.module';
 import { Vehicle } from './modules/vehicles/vehicle.entity';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    ScheduleModule.forRoot(),
+
+    // Global rate limit: 100 req / 60 s per IP. Auth routes override this lower.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -41,11 +49,15 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
           ChargerReview, ChargerReport, SuggestedCharger,
           Favorite, ChargingHistory, AppNotification,
         ],
-        // synchronize: dev auto-creates tables. Use migrations in production.
         synchronize: config.get<string>('nodeEnv') !== 'production',
         ssl: config.get<string>('nodeEnv') === 'production'
           ? { rejectUnauthorized: false }
           : false,
+        extra: {
+          max: 25,               // connection pool ceiling
+          idleTimeoutMillis: 30_000,
+          connectionTimeoutMillis: 5_000,
+        },
       }),
     }),
 
@@ -60,7 +72,12 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     HistoryModule,
     RouteModule,
     NotificationsModule,
+    MaintenanceModule,
   ],
   controllers: [HealthController],
+  providers: [
+    // Apply ThrottlerGuard globally; individual routes can use @Throttle() to override.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

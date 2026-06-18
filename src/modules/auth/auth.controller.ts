@@ -5,6 +5,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -21,6 +22,7 @@ export class AuthController {
 
   @Post('otp/send')
   @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } }) // 5 OTPs per minute per IP
   @ApiOperation({ summary: 'Send OTP to a mobile number' })
   async sendOtp(@Body() dto: SendOtpDto) {
     await this.auth.sendOtp(dto.mobile);
