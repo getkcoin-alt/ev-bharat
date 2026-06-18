@@ -21,27 +21,22 @@ export class ChargersService {
   async getNearby(q: NearbyQueryDto): Promise<Page<ChargerStation & { distanceKm: number }>> {
     const { lat, lng, radius = 25, page = 1, perPage = 20 } = q;
 
-    // Try PostGIS (production). Fall back to Haversine if PostGIS / location column unavailable (local dev).
+    // earthdistance: earth_box hits the GiST index (O(log n)), earth_distance
+    // refines. Falls back to Haversine if the extension isn't installed locally.
     let rawRows: { id: string; dist_m: string }[];
     try {
       rawRows = await this.db.query(
         `SELECT s.id,
-                ST_Distance(
-                  s.location::geography,
-                  ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography
-                ) AS dist_m
+                earth_distance(ll_to_earth($1, $2), ll_to_earth(s.latitude::float, s.longitude::float)) AS dist_m
            FROM charger_stations s
           WHERE s.status = 'active'
-            AND ST_DWithin(
-                  s.location::geography,
-                  ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography,
-                  $3
-                )
+            AND earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(s.latitude::float, s.longitude::float)
+            AND earth_distance(ll_to_earth($1, $2), ll_to_earth(s.latitude::float, s.longitude::float)) <= $3
           ORDER BY dist_m ASC`,
         [lat, lng, radius * 1000],
       );
     } catch {
-      // Haversine fallback — accurate enough for dev, not indexed for scale.
+      // Haversine fallback for environments without the earthdistance extension.
       rawRows = await this.db.query(
         `SELECT id, dist_m FROM (
            SELECT s.id,
