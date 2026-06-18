@@ -14,4 +14,12 @@ export class CreateVehicleDto {
   @IsOptional() @IsString() @MaxLength(20) vehicleNumber?: string;
 }
 
-export class UpdateVehicleDto extends CreateVehicleDto {}
+export class UpdateVehicleDto {
+  @IsOptional() @IsIn(VEHICLE_TYPES) vehicleType?: string;
+  @IsOptional() @IsString() @MaxLength(80) brand?: string;
+  @IsOptional() @IsString() @MaxLength(80) model?: string;
+  @IsOptional() @IsNumber() @Min(0) batteryCapacity?: number;
+  @IsOptional() @IsNumber() @Min(0) rangeKm?: number;
+  @IsOptional() @IsString() @MaxLength(30) connectorType?: string;
+  @IsOptional() @IsString() @MaxLength(20) vehicleNumber?: string;
+}
